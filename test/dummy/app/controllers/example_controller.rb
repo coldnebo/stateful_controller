@@ -26,7 +26,6 @@ class ExampleController < ApplicationController
     end
 
     event :sleep, unless: :finished? do 
-    #event :sleep do 
       transitions from: [:running, :cleaning], to: :sleeping
     end
 
@@ -50,6 +49,9 @@ class ExampleController < ApplicationController
     Rails.logger.debug("event sleep")
     state.tired = false
     state.nights += 1
+  end
+
+  def finish
   end
 
   private

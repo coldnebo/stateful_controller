@@ -16,6 +16,25 @@ module StatefulController
     helper_method :state
     before_filter :__load_and_process, except: :start
     after_filter :__finish
+    
+    # this section removes the event methods that aasm normally adds to the including object.
+    #   # because this object is meant to be a controller, the events (actions) should obey Rails
+    #   # behavior, so we remove the methods and manage the state transitions internally.
+    class << self
+      alias_method :aasm_orig, :aasm
+
+      def aasm(*args, &block)
+        ret = aasm_orig(*args, &block)  # first process the state machine DSL normally
+        if block
+          # then this is a DSL call, so remove the event methods it normally makes on the the object.
+          methods_to_remove = aasm.events.map(&:name)
+          methods_to_remove.each {|method|
+            remove_method(method)
+          }
+       end
+        ret
+      end
+    end
   end
 
   # StatefulController always defines a special action called 'next' that goes to the next available transition.
