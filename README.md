@@ -18,7 +18,7 @@ class ExampleController < ApplicationController
   class ExampleState < StatefulController::State
   end
 
-  # states are 'views' and transitions are 'actions'
+  # states are 'views' and events are 'actions'
   aasm do 
     state :sleeping, initial: true
     state :running
@@ -35,6 +35,20 @@ class ExampleController < ApplicationController
     event :sleep do 
       transitions from: [:running, :cleaning], to: :sleeping
     end
+  end
+
+  # controller actions here: (same names as events)
+  # do anything here that you need to do for your views, i.e. modify state
+  # load auxillary objects, etc, just like regular Rails controller actions,
+  # the corresponding view (state) will be automatically rendered for you.
+
+  def run
+  end
+
+  def clean
+  end
+
+  def sleep
   end
 
   private
@@ -56,19 +70,22 @@ Add some views:
 ```
 app/
   views/
-    cleaning.html.erb
-    running.html.erb
-    sleeping.html.erb
+    example/
+      cleaning.html.erb
+      running.html.erb
+      sleeping.html.erb
 ```
 
 
 Add some routes:
 
 ```ruby
+  
   # don't forget to add the two special routes!
   get "example/start"
   get "example/next"
 
+  # and your defined routes:
   get "example/run"
   get "example/clean"
   get "example/sleep"
