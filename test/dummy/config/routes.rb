@@ -7,6 +7,8 @@ Dummy::Application.routes.draw do
 
   get "example/sleep"
 
+  get "example/start"
+
   # The priority is based upon order of creation:
   # first created -> highest priority.
 

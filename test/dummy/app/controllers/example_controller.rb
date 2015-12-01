@@ -2,10 +2,11 @@ class ExampleController < ApplicationController
   include StatefulController
 
   class ExampleState < StatefulController::State
-    attr_accessor :clean, :tired
+    attr_accessor :clean, :tired, :nights
     def initialize
       @clean = true
       @tired = false
+      @nights = 1
     end
   end
 
@@ -14,6 +15,7 @@ class ExampleController < ApplicationController
     state :sleeping, initial: true
     state :running
     state :cleaning
+    state :finishing
     
     event :run do
       transitions from: :sleeping, to: :running
@@ -23,8 +25,13 @@ class ExampleController < ApplicationController
       transitions from: :running, to: :cleaning
     end
 
-    event :sleep do 
+    event :sleep, unless: :finished? do 
+    #event :sleep do 
       transitions from: [:running, :cleaning], to: :sleeping
+    end
+
+    event :finish, if: :finished? do 
+      transitions to: :finishing
     end
   end
 
@@ -42,6 +49,7 @@ class ExampleController < ApplicationController
   def sleep
     Rails.logger.debug("event sleep")
     state.tired = false
+    state.nights += 1
   end
 
   private
@@ -52,6 +60,9 @@ class ExampleController < ApplicationController
   def tired?
     state.tired
   end
+  def finished?
+    state.nights >= 2
+  end
 
 
   # load state however you want...
@@ -59,8 +70,8 @@ class ExampleController < ApplicationController
     session[:state] || ExampleState.new
   end
 
-  def save_state
-    session[:state] = state
+  def save_state(s)
+    session[:state] = s
   end
 
 

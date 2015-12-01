@@ -13,7 +13,8 @@ module StatefulController
   included do
     include AASM
     attr_reader :state
-    before_filter :__setup_and_process
+    helper_method :state
+    before_filter :__load_and_process, except: :start
     after_filter :__finish
   end
 
@@ -27,6 +28,12 @@ module StatefulController
     self.send(next_event)
   end
 
+  # SC also has a special action called "start" which clears state and reloads it (defaulting back to the initial state)
+  def start
+    save_state(nil)
+    __load
+  end
+
   protected
 
   def initialize
@@ -38,7 +45,19 @@ module StatefulController
   end
 
   # before filter for setup
-  def __setup_and_process
+  def __load_and_process
+    __load
+
+    # rails action should always be something convertible to a symbol
+    event = params[:action].to_sym
+
+    # next is a special action, don't try to send the event.
+    return if event == :next
+
+    __process(event)
+  end
+
+  def __load
     @state = load_state
     __debug("load_state returned #{@state.inspect}")
     raise ArgumentError, "load_state() must return a StatefulController::State or subclass." unless @state.kind_of?(State)
@@ -49,14 +68,6 @@ module StatefulController
     else
       aasm.current_state = state.current_state  # otherwise, set the aasm.current_state to the loaded current_state.
     end
-
-    # rails action should always be something convertible to a symbol
-    event = params[:action].to_sym
-
-    # next is a special action, don't try to send the event.
-    return if event == :next
-
-    __process(event)
   end
 
   def __process(event)
@@ -76,8 +87,8 @@ module StatefulController
 
   def __finish
     state.current_state = aasm.current_state
-    __debug("calling save_state with #{@state.inspect}")
-    save_state
+    __debug("calling save_state with #{state.inspect}")
+    save_state(state)
   end
 
   def load_state
