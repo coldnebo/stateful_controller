@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["larry.kyrala@gmail.com"]
 
   spec.summary       = %q{A StatefulController for Rails that uses a state machine to manage transitions between views.}
-  spec.description   = %q{TODO: Write a longer description or delete this line.}
+  #spec.description   = %q{TODO: Write a longer description or delete this line.}
   spec.homepage      = "https://github.com/coldnebo/stateful_controller"
   spec.license       = "MIT"
 
