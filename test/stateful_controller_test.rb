@@ -1,8 +1,9 @@
 require 'test_helper'
+require 'action_controller'
 
 class StatefulControllerTest < Minitest::Test
   
-  class MyController
+  class MyController < ActionController::Base
     include StatefulController
 
     # states are 'views' and transitions are 'actions'
@@ -43,8 +44,7 @@ class StatefulControllerTest < Minitest::Test
 
   def test_it_has_its_own_state
     instance = MyController.new
-    refute instance.state.nil?
-    assert instance.state.current_state == :sleeping
+    assert instance.state.nil?
   end
   
 end
