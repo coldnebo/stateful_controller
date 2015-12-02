@@ -65,7 +65,7 @@ end
 ```
 
 Add some views:
-(note that views are not named the same as your actions, but should match your event names!)
+(note that views are not named the same as your actions, but should match your state names!)
 
 ```
 app/
