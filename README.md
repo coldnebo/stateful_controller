@@ -41,8 +41,11 @@ class ExampleController < ApplicationController
   
   def run
     # NOTE: unlike Rails, the default render will not be 'run.html.erb', but 
-    # instead will be defined by which views the action transitions are allowed 
-    # the aasm block above!
+    # instead will be defined by the aasm block above!
+
+    # StatefulController acts like a dynamic dispatcher to your 
+    # views, but instead of hand coding manual 'redirect_to' or 
+    # 'render view' in various actions, the dispatcher is governed by the state machine.
   end
 
   def clean
