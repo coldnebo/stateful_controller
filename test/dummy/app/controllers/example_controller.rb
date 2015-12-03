@@ -12,41 +12,38 @@ class ExampleController < ApplicationController
 
   # states are 'views' and transitions are 'actions'
   aasm do 
-    state :sleeping, initial: true
-    state :running
-    state :cleaning
-    state :finishing
+    view :sleeping, initial: true
+    view :running
+    view :cleaning
+    view :finishing
     
-    event :run do
+    action :run do
       transitions from: :sleeping, to: :running
     end
 
-    event :clean, unless: :clean? do 
+    action :clean, unless: :clean? do 
       transitions from: :running, to: :cleaning
     end
 
-    event :sleep, unless: :finished? do 
+    action :sleep, unless: :finished? do 
       transitions from: [:running, :cleaning], to: :sleeping
     end
 
-    event :finish, if: :finished? do 
+    action :finish, if: :finished? do 
       transitions to: :finishing
     end
   end
 
   def run
-    Rails.logger.debug("event run")
     state.clean = false
     state.tired = true
   end
 
   def clean
-    Rails.logger.debug("event clean")
     state.clean = true
   end
 
   def sleep
-    Rails.logger.debug("event sleep")
     state.tired = false
     state.nights += 1
   end

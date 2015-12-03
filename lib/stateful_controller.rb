@@ -1,7 +1,11 @@
 require 'stateful_controller/version'
 require 'active_support/concern'
 require 'aasm'
+require 'stateful_controller/extend_aasm'
 require 'ostruct'
+
+require 'stateful_controller/railtie' if defined?(Rails)
+
 
 module StatefulController
   extend ActiveSupport::Concern
@@ -14,8 +18,8 @@ module StatefulController
     include AASM
     attr_reader :state
     helper_method :state
-    before_filter :__load_and_process, except: :start
-    after_filter :__finish
+    before_filter :__load_and_process, except: [:start, :template]
+    after_filter :__finish, except: :template
     
     # this section removes the event methods that aasm normally adds to the including object.
     #   # because this object is meant to be a controller, the events (actions) should obey Rails
@@ -41,7 +45,7 @@ module StatefulController
   def next
     # this may rely on events having exactly one transition... otherwise, we may need an argument? (TBD) 
     next_events = aasm.events(permitted: true).map(&:name)
-    __debug("choosing first from next events: #{next_events.inspect}")
+    __debug("choosing first from possible next events: #{next_events.inspect}")
     next_event = next_events.first
     __process(next_event)
     self.send(next_event)
@@ -78,7 +82,7 @@ module StatefulController
 
   def __load
     @state = load_state
-    __debug("load_state returned #{@state.inspect}")
+    __debug("loaded state: #{@state.inspect}")
     raise ArgumentError, "load_state() must return a StatefulController::State or subclass." unless @state.kind_of?(State)
 
     # allow the StatefulController to retain it's current state across requests (since controller instances are created per request in Rails)
@@ -106,20 +110,20 @@ module StatefulController
 
   def __finish
     state.current_state = aasm.current_state
-    __debug("calling save_state with #{state.inspect}")
     save_state(state)
+    __debug("saved state: #{state.inspect}")
   end
 
   def load_state
     raise NotImplementedError, "Controllers that include StatefulController should define the load_state() method."
   end
 
-  def save_state
-    raise NotImplementedError, "Controllers that include StatefulController should define the save_state() method."
+  def save_state(state)
+    raise NotImplementedError, "Controllers that include StatefulController should define the save_state(state) method."
   end    
 
   def __debug(msg)
-    Rails.logger.debug("DEBUG [StatefulController]: #{msg}")
+    Rails.logger.debug("DEBUG [StatefulController] #{msg}")
   end
 
 end

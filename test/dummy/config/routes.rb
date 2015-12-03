@@ -1,13 +1,19 @@
 Dummy::Application.routes.draw do
-  get "example/next"
 
-  get "example/run"
+  # simple example
+    # special actions
+    get "example/start"
+    get "example/next"
+    # actions (events)
+    get "example/run"
+    get "example/clean"
+    get "example/sleep"
+    get "example/finish"
 
-  get "example/clean"
 
-  get "example/sleep"
+  # example using forms
+  
 
-  get "example/start"
 
   # The priority is based upon order of creation:
   # first created -> highest priority.

@@ -20,29 +20,29 @@ class ExampleController < ApplicationController
 
   # states are 'views' and events are 'actions'
   aasm do 
-    state :sleeping, initial: true
-    state :running
-    state :cleaning
+    view :sleeping, initial: true
+    view :running
+    view :cleaning
     
-    event :run do
+    action :run do
       transitions from: :sleeping, to: :running
     end
 
-    event :clean do 
+    action :clean do 
       transitions from: :running, to: :cleaning
     end
 
-    event :sleep do 
+    action :sleep do 
       transitions from: [:running, :cleaning], to: :sleeping
     end
   end
 
-  # controller actions here: (same names as events)
-  # do anything here that you need to do for your views, i.e. modify state
-  # load auxillary objects, etc, just like regular Rails controller actions,
-  # the corresponding view (state) will be automatically rendered for you.
-
+  # controller actions can be defined here just like normal Rails actions:
+  
   def run
+    # NOTE: unlike Rails, the default render will not be 'run.html.erb', but 
+    # instead will be defined by which views the action transitions are allowed 
+    # the aasm block above!
   end
 
   def clean
@@ -65,7 +65,6 @@ end
 ```
 
 Add some views:
-(note that views are not named the same as your actions, but should match your state names!)
 
 ```
 app/
@@ -85,7 +84,7 @@ Add some routes:
   get "example/start"
   get "example/next"
 
-  # and your defined routes:
+  # and your defined action routes:
   get "example/run"
   get "example/clean"
   get "example/sleep"
@@ -116,6 +115,8 @@ http://localhost:3000/example/clean   # tries to send event :clean, but raises:
 ```
 
 ### Summary 
+
+StatefulController extends AASM by adding aliases for 'state' (view) and 'event' (action) in order to make the StatefulController context more readable.
 
 You can define the legal transitions in your user flow in the state machine and StatefulController will enforce that flow for you, which 
 greatly simplifies the Rails controller logic for complex flows.  See the source for the dummy Rails application which has more detail and
