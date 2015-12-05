@@ -6,7 +6,8 @@ namespace :stateful_controller do
     controller = args[:controller]
     valid = true
     valid &&= controller.present?
-    valid &&= controller.constantize.ancestors.include?(StatefulController) rescue false
+    valid &&= controller.constantize.ancestors.include?(StatefulController)
+    
     fail "You must specify a controller that includes StatefulController" unless valid
 
     controller = controller.constantize

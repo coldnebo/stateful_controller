@@ -1,0 +1,14 @@
+<h1>What is your favorite day?</h1>
+
+<p>Please fill in the following questions:</p>
+
+<%= form_for(@form, url: forms_example_submit_path, builder: InlineValidationBuilder) do |f| %>
+<%= f.label :name, 'First Name:' %><%= f.error_for :name %>
+<%= f.text_field :name %>
+<br/>
+<%= f.label :favorite_day, 'Favorite Day' %>
+<%= f.select :favorite_day, options_for_select(@days, f.object.favorite_day) %>
+<br/>
+<%= f.submit 'Continue' %>
+<% end %>
+

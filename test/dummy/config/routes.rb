@@ -12,7 +12,13 @@ Dummy::Application.routes.draw do
 
 
   # example using forms
-  
+  # special actions
+  get "forms_example/start"
+  get "forms_example/next"
+  # actions (events)
+  get "forms_example/ask"
+  post "forms_example/submit"
+  get "forms_example/done"
 
 
   # The priority is based upon order of creation:

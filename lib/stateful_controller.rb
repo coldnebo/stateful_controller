@@ -64,6 +64,7 @@ module StatefulController
   end
 
   def default_render(*args)
+    __debug("default_render current state")
     render aasm.current_state
   end
 
@@ -81,6 +82,7 @@ module StatefulController
   end
 
   def __load
+    __debug("__load")
     @state = load_state
     __debug("loaded state: #{@state.inspect}")
     raise ArgumentError, "load_state() must return a StatefulController::State or subclass." unless @state.kind_of?(State)
@@ -94,6 +96,15 @@ module StatefulController
   end
 
   def __process(event)
+    __debug("__process")
+    # before anything else, we want to run the optional view init... this will load any view specific state 
+    # before the guards might actually need it.
+    # TODO: THIS TURNED INTO A RIPE MESS  -- HOW TO FIX?
+    # ONCE BEFORE?
+    if self.methods.include?(aasm.current_state)
+      self.send(aasm.current_state)
+    end
+
     # manually trigger the event (while we consider the aasm events as "actions", we reserve the methods in the 
     # controller as actual actions instead of aasm event triggering sugar.)
     # adapted from ./lib/aasm/base.rb:85
@@ -106,6 +117,14 @@ module StatefulController
     # also, aasm supports arguments for events, but because StatefulController models Rails controller actions, no arguments or blocks are supported.
     # original line:  aasm_fire_event(:#{@name}, :#{name}, {:persist => false}, *args, &block)
     aasm_fire_event(:default, event, {persist: false}, [])
+
+    # before anything else, we want to run the optional view init... this will load any view specific state 
+    # before the guards might actually need it.
+    # TODO: THIS TURNED INTO A RIPE MESS  -- HOW TO FIX?
+    # ONCE AGAIN AFTER CHANGE?
+    if self.methods.include?(aasm.current_state)
+      self.send(aasm.current_state)
+    end
   end
 
   def __finish
