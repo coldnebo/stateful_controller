@@ -59,12 +59,17 @@ module StatefulController
 
   protected
 
+  # can be used to determine whether the current action was valid according to the state machine.
+  def action_valid?
+    params[:action].to_sym == aasm.current_event
+  end
+
   def initialize
     super
   end
 
   def default_render(*args)
-    __debug("default_render current state")
+    __debug("default_render current state: #{aasm.current_state}")
     render aasm.current_state
   end
 
@@ -97,11 +102,9 @@ module StatefulController
 
   def __process(event)
     __debug("__process")
-    # before anything else, we want to run the optional view init... this will load any view specific state 
-    # before the guards might actually need it.
-    # TODO: THIS TURNED INTO A RIPE MESS  -- HOW TO FIX?
-    # ONCE BEFORE?
+    # before we run the sm or the guards, we need to run the pre-view logic for the current state.
     if self.methods.include?(aasm.current_state)
+      __debug("calling prev first: #{aasm.current_state}")
       self.send(aasm.current_state)
     end
 
@@ -118,19 +121,19 @@ module StatefulController
     # original line:  aasm_fire_event(:#{@name}, :#{name}, {:persist => false}, *args, &block)
     aasm_fire_event(:default, event, {persist: false}, [])
 
-    # before anything else, we want to run the optional view init... this will load any view specific state 
-    # before the guards might actually need it.
-    # TODO: THIS TURNED INTO A RIPE MESS  -- HOW TO FIX?
-    # ONCE AGAIN AFTER CHANGE?
-    if self.methods.include?(aasm.current_state)
+    # after we've fired the event we also want to run the pre-view for the current state, but only if it changed.
+    if state.current_state != aasm.current_state && self.methods.include?(aasm.current_state)
+      __debug("calling prev second: #{aasm.current_state}")
       self.send(aasm.current_state)
     end
   end
 
   def __finish
-    state.current_state = aasm.current_state
-    save_state(state)
-    __debug("saved state: #{state.inspect}")
+    if state.current_state != aasm.current_state
+      state.current_state = aasm.current_state
+      save_state(state)
+      __debug("saved state: #{state.inspect}")
+    end
   end
 
   def load_state

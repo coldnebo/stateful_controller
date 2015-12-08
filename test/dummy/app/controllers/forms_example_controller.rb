@@ -2,7 +2,7 @@ class FormsExampleController < ApplicationController
   include StatefulController
 
   class FormsExampleState < StatefulController::State
-    attr_accessor :name, :favorite_day, :valid
+    attr_accessor :name, :favorite_day
     def initialize
     end
   end
@@ -13,16 +13,16 @@ class FormsExampleController < ApplicationController
     view :favorite_day
     view :finish
 
-    event :ask do
+    action :ask do
       transitions from: :welcome, to: :what_is_your_favorite_day      
     end
 
-    event :submit, if: :valid? do
+    action :submit, if: :valid? do
       transitions from: :what_is_your_favorite_day, to: :favorite_day, if: :favorite?
       transitions from: :what_is_your_favorite_day, to: :finish
     end
 
-    event :done do
+    action :done do
       transitions to: :finish
     end
 
@@ -36,9 +36,8 @@ class FormsExampleController < ApplicationController
   end
   def submit
     __debug("running submit")
-    if @form.validate(params['information'])
-      @form.sync
-      state.valid = true
+    if action_valid?
+      __debug("submitted!")      
     end
   end
   def done
@@ -49,7 +48,7 @@ class FormsExampleController < ApplicationController
 
   def what_is_your_favorite_day
     __debug("run view prep")
-    @days = Date::DAYNAMES.rotate(1)
+    @days = Date::DAYNAMES.each_with_index.map{|d,i| [d,i]}
     @form = InformationForm.new(state)
   end
 
@@ -60,11 +59,13 @@ class FormsExampleController < ApplicationController
 
   def valid?
     __debug("run guard valid?")
-    state.valid
+    valid = @form.validate(params['information'])
+    @form.sync if valid
+    valid
   end
   # is today your favorite day?
   def favorite?
-    DateTime.now.day == state.favorite_day.to_i
+    DateTime.now.wday == state.favorite_day.to_i
   end
 
 
