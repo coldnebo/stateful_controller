@@ -7,23 +7,35 @@ require 'ostruct'
 require 'stateful_controller/railtie' if defined?(Rails)
 
 
+# StatefulController acts as a hybrid of a Rails controller and a state machine in order to 
+# more easily control user flows that may have multiple conditional outputs depending on prior inputs 
+# (for example, marketing surveys, tax forms, questionaires, registrations, etc.)
 module StatefulController
   extend ActiveSupport::Concern
 
+  # subclass this class to store your own custom state in.
   class State
+    # :current_state - the current state of the state machine.
     attr_accessor :current_state
   end
 
+  # things to mixin to the including controller instance
   included do
-    include AASM
+    include AASM  # make this controller an aasm state machine as well.
+    
+    # state contains the State object instance and is automatically loaded at the start of an action and saved 
+    # at the end of an action.  state can be used within views through the same accessor.
     attr_reader :state
     helper_method :state
-    before_filter :__load_and_process, except: [:start, :template]
-    after_filter :__finish, except: :template
+
+    # all actions call load & process before they execute, except for the special action 'start' which places 
+    # the user in the initial state with no action (i.e. the start action is not treated as normal event.)
+    before_filter :__load_and_process, except: :start
+    # all actions call finish after the action to save state.
+    after_filter :__finish
     
-    # this section removes the event methods that aasm normally adds to the including object.
-    #   # because this object is meant to be a controller, the events (actions) should obey Rails
-    #   # behavior, so we remove the methods and manage the state transitions internally.
+    # this section removes the event methods that aasm normally adds to the including object
+    # so that StatefulController actions can act more like Rails actions instead of firing aasm events.
     class << self
       alias_method :aasm_orig, :aasm
 
@@ -35,23 +47,23 @@ module StatefulController
           methods_to_remove.each {|method|
             remove_method(method)
           }
-       end
+        end
         ret
       end
     end
   end
 
-  # StatefulController always defines a special action called 'next' that goes to the next available transition.
+  # 'next' is a special action that goes to the (first) next available transition according to the state machine.
   def next
     # this may rely on events having exactly one transition... otherwise, we may need an argument? (TBD) 
     next_events = aasm.events(permitted: true).map(&:name)
     __debug("choosing first from possible next events: #{next_events.inspect}")
     next_event = next_events.first
-    __process(next_event)
+    __process(next_event)  # next does it's own call to __process because it has to lookup permitted events.
     self.send(next_event)
   end
 
-  # SC also has a special action called "start" which clears state and reloads it (defaulting back to the initial state)
+  # 'start' is a special action that clears state and sets the state machine back to the initial state.
   def start
     save_state(nil)
     __load
@@ -59,15 +71,15 @@ module StatefulController
 
   protected
 
-  # can be used to determine whether the current action was valid according to the state machine.
-  def action_valid?
-    params[:action].to_sym == aasm.current_event
+  # can be used by actions to determine whether the current action is permitted according to the state machine 
+  # (i.e. whether the action matches the current_event)
+  def action_permitted?
+    @__fired_event
   end
 
-  def initialize
-    super
-  end
-
+  # StatefulController redefines default_render: instead of rendering a view name that matches the action name, 
+  # instead we render a view name that matches the current aasm state name according to the execution of the 
+  # state machine so far.
   def default_render(*args)
     __debug("default_render current state: #{aasm.current_state}")
     render aasm.current_state
@@ -76,18 +88,12 @@ module StatefulController
   # before filter for setup
   def __load_and_process
     __load
-
-    # rails action should always be something convertible to a symbol
-    event = params[:action].to_sym
-
-    # next is a special action, don't try to send the event.
-    return if event == :next
-
+    event = params[:action].to_sym  # rails action should always be something convertible to a symbol
+    return if event == :next  # next is a special action, don't try to send the event.
     __process(event)
   end
 
   def __load
-    __debug("__load")
     @state = load_state
     __debug("loaded state: #{@state.inspect}")
     raise ArgumentError, "load_state() must return a StatefulController::State or subclass." unless @state.kind_of?(State)
@@ -101,8 +107,7 @@ module StatefulController
   end
 
   def __process(event)
-    __debug("__process")
-    # before we run the sm or the guards, we need to run the pre-view logic for the current state.
+    # before we run the state machine or the guards, we need to run the pre-view logic for the current state.
     if self.methods.include?(aasm.current_state)
       __debug("calling prev first: #{aasm.current_state}")
       self.send(aasm.current_state)
@@ -119,15 +124,17 @@ module StatefulController
 
     # also, aasm supports arguments for events, but because StatefulController models Rails controller actions, no arguments or blocks are supported.
     # original line:  aasm_fire_event(:#{@name}, :#{name}, {:persist => false}, *args, &block)
-    aasm_fire_event(:default, event, {persist: false}, [])
+    @__fired_event = aasm_fire_event(:default, event, {persist: false}, [])
 
-    # after we've fired the event we also want to run the pre-view for the current state, but only if it changed.
+    # after we've fired the event we also want to run the pre-view for the new current state, but only if it changed from the recorded state.
     if state.current_state != aasm.current_state && self.methods.include?(aasm.current_state)
       __debug("calling prev second: #{aasm.current_state}")
       self.send(aasm.current_state)
     end
   end
 
+  # an after_filter that checks to see if the recorded state has changed from the aasm current state.  If it has, then the aasm current state
+  # is set in the State object and a save_state message is sent to the implementing controller. 
   def __finish
     if state.current_state != aasm.current_state
       state.current_state = aasm.current_state
@@ -136,14 +143,20 @@ module StatefulController
     end
   end
 
+  # load_state is implemented in the controller that includes StatefulController.  The reason this method is deferred is so 
+  # that the developer can decide how to persist the state (i.e. use ActiveRecord, Rails' Session, or some other method.)
+  # @returns state - an instance of the State or subclass.
   def load_state
     raise NotImplementedError, "Controllers that include StatefulController should define the load_state() method."
   end
 
+  # save_state is implemented in the controller that includes StatefulController.  The reason this method is deferred is so 
+  # that the developer can decide how to persist the state (i.e. use ActiveRecord, Rails' Session, or some other method.)
   def save_state(state)
     raise NotImplementedError, "Controllers that include StatefulController should define the save_state(state) method."
   end    
 
+  # internal debugging only!
   def __debug(msg)
     Rails.logger.debug("DEBUG [StatefulController] #{msg}")
   end

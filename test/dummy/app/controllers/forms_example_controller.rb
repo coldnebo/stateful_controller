@@ -32,24 +32,28 @@ class FormsExampleController < ApplicationController
   # ----------- controller actions --------------
   # actions (events)
   def ask
-    __debug("running ask")
   end
   def submit
-    __debug("running submit")
-    if action_valid?
-      __debug("submitted!")      
+    if action_permitted?
+      puts "submit allowed!"
     end
   end
   def done
-    __debug("running done")
   end
 
   protected
 
+  # pre-views: these methods have the same name as views (states) and will be called 
+  # before displaying the corresponding view.  This allows the StatefulController to 
+  # setup the controller state necesssary for a view no matter what event triggers it.
+
   def what_is_your_favorite_day
-    __debug("run view prep")
     @days = Date::DAYNAMES.each_with_index.map{|d,i| [d,i]}
     @form = InformationForm.new(state)
+  end
+
+  def finish
+    @day = Date::DAYNAMES[DateTime.now.wday]
   end
 
   private
@@ -58,9 +62,9 @@ class FormsExampleController < ApplicationController
   # ------------- guards -------------
 
   def valid?
-    __debug("run guard valid?")
+    return false if @form.nil?
     valid = @form.validate(params['information'])
-    @form.sync if valid
+    @form.sync if valid  # sync done during guard so that other guard favorite can run, but maybe weird dep order here. :(
     valid
   end
   # is today your favorite day?
