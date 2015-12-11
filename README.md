@@ -99,10 +99,10 @@ Add some routes:
 Try the following:
 
 ```
-http://localhost:3000/example/start   # resets ExampleState, sets current_state to the aasm intial (:sleeping) and shows sleeping.html.erb
-http://localhost:3000/example/next    # checks the permitted events from :sleeping, fires it (:run) and shows running.html.erb
-http://localhost:3000/example/next    # checks the permitted events from :running, fires it (:clean) and shows cleaning.html.erb
-http://localhost:3000/example/next    # checks the permitted events from :cleaning, fires it (:sleep) and shows sleeping.html.erb
+http://localhost:3000/example/start   # starts in sleeping.html.erb
+http://localhost:3000/example/next    # finds and fires 'run' and shows running.html.erb
+http://localhost:3000/example/next    # finds and fires 'clean' and shows cleaning.html.erb
+http://localhost:3000/example/next    # finds and fires 'sleep' and shows sleeping.html.erb
 
 ```
 
@@ -111,10 +111,8 @@ So, the special *next* action dispatches whatever the next permitted action is (
 What if we don't follow the rules?
 
 ```
-http://localhost:3000/example/start   # resets ExampleState, sets current_state to the aasm intial (:sleeping) and shows sleeping.html.erb
-http://localhost:3000/example/clean   # tries to send event :clean, but raises: 
-                                        AASM::InvalidTransition in ExampleController#clean
-                                        Event 'clean' cannot transition from 'sleeping'
+http://localhost:3000/example/start   # starts in sleeping.html.erb
+http://localhost:3000/example/clean   # guard prevents 'clean' and shows current state (sleeping) 
 ```
 
 ### Summary 
