@@ -80,6 +80,15 @@ module StatefulController
         end
       end
 
+      # before_views allow you to setup state for the view they specify.  
+      # NOTE: This is the only place you should mutate state in a StatefulController. 
+      def before_view(view_name, &block)
+        raise ArgumentError, "aasm must be defined prior to calling before_view" unless @__sm_loaded
+        view_names = aasm.states.map(&:name)
+        raise ArgumentError, "#{view_name} is not defined in the aasm block as either a view or a state." unless view_names.include?(view_name)
+        define_method(view_name, &block)
+      end
+
     end
   end
 

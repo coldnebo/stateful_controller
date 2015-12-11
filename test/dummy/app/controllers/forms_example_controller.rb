@@ -39,18 +39,18 @@ class FormsExampleController < ApplicationController
   end
   def finish
   end
-  
+
 
   protected
 
-  # pre-views: these methods have the same name as views (states) and will be called 
+  # before_view: these blocks will be called 
   # before displaying the corresponding view.  This allows the StatefulController to 
   # setup the controller state necesssary for a view no matter what event triggers it.
 
-  # note that on an event transition, two pre-views are called: the first is the state 
+  # note that on an event transition, two before_views may be called: the first is the state 
   # before the transition and the second is the state after the transition.
 
-  def what_is_your_favorite_day
+  before_view :what_is_your_favorite_day do 
     @days = Date::DAYNAMES.each_with_index.map{|d,i| [d,i]}
     @form = InformationForm.new(state)
     # in case of repost or validation scenario... this is like traditional rails repost logic.
@@ -62,7 +62,7 @@ class FormsExampleController < ApplicationController
     end
   end
 
-  def goodbye
+  before_view :goodbye do
     @day = Date::DAYNAMES[DateTime.now.wday]
   end
 
