@@ -8,7 +8,7 @@ class FormsExampleController < ApplicationController
     end
   end
 
-  aasm(someopt: true) do 
+  aasm do 
     view :welcome, initial: true
     view :what_is_your_favorite_day
     view :favorite_day
