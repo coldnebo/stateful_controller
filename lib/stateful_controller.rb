@@ -153,7 +153,7 @@ module StatefulController
   def __process(event)
     # before we run the state machine or the guards, we need to run the pre-view logic for the current state.
     if self.methods.include?(aasm.current_state)
-      __debug("calling: #{aasm.current_state}")
+      __debug("before_view: #{aasm.current_state}")
       self.send(aasm.current_state)
     end
 
@@ -169,10 +169,13 @@ module StatefulController
     # also, aasm supports arguments for events, but because StatefulController models Rails controller actions, no arguments or blocks are supported.
     # original line:  aasm_fire_event(:#{@name}, :#{name}, {:persist => false}, *args, &block)
     @__fired_event = aasm_fire_event(:default, event, {persist: false}, [])
+    unless event_fired?
+      __debug("guards prevented: #{event}")
+    end
 
     # after we've fired the event we also want to run the pre-view for the new current state, but only if it changed from the recorded state.
     if state_changed? && self.methods.include?(aasm.current_state)
-      __debug("calling: #{aasm.current_state}")
+      __debug("before_view: #{aasm.current_state}")
       self.send(aasm.current_state)
     end
   end
