@@ -39,17 +39,47 @@ module StatefulController
     class << self
       alias_method :aasm_orig, :aasm
 
+      @__sm_loaded = false
+      @__wrapping_method = false
+
+      # note: the assm block must appear before the controller actions.
       def aasm(*args, &block)
-        ret = aasm_orig(*args, &block)  # first process the state machine DSL normally
+        unless args[0].is_a?(Symbol) || args[0].is_a?(String)
+          options = args[0] || {}
+          args[0] = options.merge(whiny_transitions: false)
+        end
+
+        # first process the state machine DSL normally
+        ret = aasm_orig(*args, &block)  
         if block
           # then this is a DSL call, so remove the event methods it normally makes on the the object.
           methods_to_remove = aasm.events.map(&:name)
           methods_to_remove.each {|method|
-            remove_method(method)
+            remove_method(method)            
           }
         end
+        @__sm_loaded = true
         ret
       end
+
+      # here we want to prevent events(actions) from being called if the event didn't fire successfully.
+      def method_added(method_name)
+        return unless @__sm_loaded && !@__wrapping_method
+        event_methods = aasm.events.map(&:name)
+        if event_methods.include?(method_name)
+          @__wrapping_method = true
+          wrapped_method = "_#{method_name}".to_sym
+          alias_method(wrapped_method,method_name)
+          define_method(method_name) {
+            if event_fired?
+              __debug("calling: #{method_name}")
+              self.send(wrapped_method) 
+            end
+          }
+          @__wrapping_method = false
+        end
+      end
+
     end
   end
 
@@ -71,17 +101,22 @@ module StatefulController
 
   protected
 
-  # can be used by actions to determine whether the current action is permitted according to the state machine 
+  # can be used by actions to determine whether the event fired correctly according to the state machine 
   # (i.e. whether the action matches the current_event)
-  def action_permitted?
+  # see also, aasm(whiny_transitions: false)
+  def event_fired?
     @__fired_event
+  end
+
+  def state_changed?
+    state.current_state != aasm.current_state
   end
 
   # StatefulController redefines default_render: instead of rendering a view name that matches the action name, 
   # instead we render a view name that matches the current aasm state name according to the execution of the 
   # state machine so far.
   def default_render(*args)
-    __debug("default_render current state: #{aasm.current_state}")
+    __debug("rendering: #{aasm.current_state}")
     render aasm.current_state
   end
 
@@ -109,7 +144,7 @@ module StatefulController
   def __process(event)
     # before we run the state machine or the guards, we need to run the pre-view logic for the current state.
     if self.methods.include?(aasm.current_state)
-      __debug("calling prev first: #{aasm.current_state}")
+      __debug("calling: #{aasm.current_state}")
       self.send(aasm.current_state)
     end
 
@@ -127,8 +162,8 @@ module StatefulController
     @__fired_event = aasm_fire_event(:default, event, {persist: false}, [])
 
     # after we've fired the event we also want to run the pre-view for the new current state, but only if it changed from the recorded state.
-    if state.current_state != aasm.current_state && self.methods.include?(aasm.current_state)
-      __debug("calling prev second: #{aasm.current_state}")
+    if state_changed? && self.methods.include?(aasm.current_state)
+      __debug("calling: #{aasm.current_state}")
       self.send(aasm.current_state)
     end
   end
@@ -136,7 +171,7 @@ module StatefulController
   # an after_filter that checks to see if the recorded state has changed from the aasm current state.  If it has, then the aasm current state
   # is set in the State object and a save_state message is sent to the implementing controller. 
   def __finish
-    if state.current_state != aasm.current_state
+    if state_changed?
       state.current_state = aasm.current_state
       save_state(state)
       __debug("saved state: #{state.inspect}")

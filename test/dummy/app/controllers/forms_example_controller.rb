@@ -2,16 +2,17 @@ class FormsExampleController < ApplicationController
   include StatefulController
 
   class FormsExampleState < StatefulController::State
-    attr_accessor :name, :favorite_day
+    attr_accessor :name, :favorite_day, :valid
     def initialize
+      @valid = false
     end
   end
 
-  aasm(whiny_transitions: false) do 
+  aasm(someopt: true) do 
     view :welcome, initial: true
     view :what_is_your_favorite_day
     view :favorite_day
-    view :finish
+    view :goodbye
 
     action :ask do
       transitions from: :welcome, to: :what_is_your_favorite_day      
@@ -19,11 +20,11 @@ class FormsExampleController < ApplicationController
 
     action :submit, if: :valid? do
       transitions from: :what_is_your_favorite_day, to: :favorite_day, if: :favorite?
-      transitions from: :what_is_your_favorite_day, to: :finish
+      transitions from: :what_is_your_favorite_day, to: :goodbye
     end
 
-    action :done do
-      transitions to: :finish
+    action :finish do
+      transitions to: :goodbye
     end
 
   end
@@ -34,12 +35,11 @@ class FormsExampleController < ApplicationController
   def ask
   end
   def submit
-    if action_permitted?
-      puts "submit allowed!"
-    end
+    Rails.logger.info "submitted!!"
   end
-  def done
+  def finish
   end
+  
 
   protected
 
@@ -47,12 +47,22 @@ class FormsExampleController < ApplicationController
   # before displaying the corresponding view.  This allows the StatefulController to 
   # setup the controller state necesssary for a view no matter what event triggers it.
 
+  # note that on an event transition, two pre-views are called: the first is the state 
+  # before the transition and the second is the state after the transition.
+
   def what_is_your_favorite_day
     @days = Date::DAYNAMES.each_with_index.map{|d,i| [d,i]}
     @form = InformationForm.new(state)
+    # in case of repost or validation scenario... this is like traditional rails repost logic.
+    if params.has_key?(:information) && @form.validate(params[:information])
+      @form.sync
+      # note that state is set on the preview, but won't be saved unless the state transition actually changes 
+      # i.e. action_permitted?
+      state.valid = true
+    end
   end
 
-  def finish
+  def goodbye
     @day = Date::DAYNAMES[DateTime.now.wday]
   end
 
@@ -61,11 +71,10 @@ class FormsExampleController < ApplicationController
 
   # ------------- guards -------------
 
+  # guards should always be expressed in terms of state.
+
   def valid?
-    return false if @form.nil?
-    valid = @form.validate(params['information'])
-    @form.sync if valid  # sync done during guard so that other guard favorite can run, but maybe weird dep order here. :(
-    valid
+    state.valid
   end
   # is today your favorite day?
   def favorite?

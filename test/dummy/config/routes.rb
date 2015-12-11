@@ -18,7 +18,7 @@ Dummy::Application.routes.draw do
   # actions (events)
   get "forms_example/ask"
   post "forms_example/submit"
-  get "forms_example/done"
+  get "forms_example/finish"
 
 
   # The priority is based upon order of creation:
