@@ -71,13 +71,14 @@ class FormsExampleController < ApplicationController
 
   # ------------- guards -------------
 
-  # guards should always be expressed in terms of state.
-
-  def valid?
+  # guards should always be expressed in terms of state because they can run anywhere anytime.
+  # (i.e. before_views can be tied to view forms, but guards should be based on a longer lifetime.)
+  guard :valid? do
     state.valid
   end
-  # is today your favorite day?
-  def favorite?
+
+  # is today your favorite day
+  guard :favorite? do
     DateTime.now.wday == state.favorite_day.to_i
   end
 

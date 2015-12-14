@@ -89,6 +89,11 @@ module StatefulController
         define_method(view_name, &block)
       end
 
+      # just a synonym for creating a guard method.  helpful for organization.
+      def guard(guard_name, &block)
+        define_method(guard_name, &block)
+      end
+
     end
   end
 

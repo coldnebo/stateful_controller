@@ -53,13 +53,13 @@ class ExampleController < ApplicationController
 
   private
 
-  def clean?
+  guard :clean? do
     state.clean
   end
-  def tired?
+  guard :tired? do
     state.tired
   end
-  def finished?
+  guard :finished? do
     state.nights >= 2
   end
 
