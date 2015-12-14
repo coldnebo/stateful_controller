@@ -33,6 +33,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 1.10"
   spec.add_development_dependency "rake", "~> 10.0"
   spec.add_development_dependency "minitest"
+  spec.add_development_dependency "simplecov"
+  spec.add_development_dependency "mocha"
 
   spec.add_development_dependency "yard"
 end

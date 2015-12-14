@@ -52,7 +52,10 @@ module StatefulController
         # first process the state machine DSL normally
         ret = aasm_orig(*args, &block)  
         if block
-          # then this is a DSL call, so remove the event methods it normally makes on the the object.
+          # then this is a DSL call, so remove the event methods it normally makes on the the object
+          # because we want the user to define their own.  We are doing what these auto methods do manually 
+          # under the covers, so we don't need them (see __process).  Also, we don't want users manipulating 
+          # events directly.  One event per action is enforced by StatefulController.
           methods_to_remove = aasm.events.map(&:name)
           methods_to_remove.each {|method|
             remove_method(method)            
@@ -63,6 +66,10 @@ module StatefulController
       end
 
       # here we want to prevent events(actions) from being called if the event didn't fire successfully.
+      # event methods should also be defined after the aasm block, but we can't raise an ArgumentError here
+      # because of chicken & egg scenario: we only want to intercept events, but we can't know what 
+      # events were added unless the aasm block was first.  But the aasm block definition will trigger this
+      # method during construction, so... leave it alone.
       def method_added(method_name)
         return unless @__sm_loaded && !@__wrapping_method
         event_methods = aasm.events.map(&:name)

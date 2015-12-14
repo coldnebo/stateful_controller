@@ -1,50 +1,28 @@
 require 'test_helper'
 require 'action_controller'
 
-class StatefulControllerTest < Minitest::Test
+
+require 'test_controller'
+
+
+describe StatefulController do
+
+  let(:instance) { MyController.new }
   
-  class MyController < ActionController::Base
-    include StatefulController
-
-    # states are 'views' and transitions are 'actions'
-    aasm do 
-      state :sleeping, initial: true
-      state :running
-      state :cleaning
-    
-      event :run do
-        transitions from: :sleeping, to: :running
-      end
-
-      event :clean do 
-        transitions from: :running, to: :cleaning
-      end
-
-      event :sleep do 
-        transitions from: [:running, :cleaning], to: :sleeping
-      end
-    end
-
-    # actions 
-    def run
-    end
-
-    def clean
-    end
-
-    def sleep
-    end
-  end
-
-
-  def test_that_it_has_a_version_number
+  it "has a version number" do
     refute_nil ::StatefulController::VERSION
   end
 
-
-  def test_it_has_its_own_state
-    instance = MyController.new
-    assert instance.state.nil?
+  it "has its own state" do
+    instance.start
+    assert instance.state.current_state == :sleeping
   end
-  
+
+  it "fires events" do
+    skip
+    instance.start
+    instance.run
+    event_fired = instance.instance_eval{ event_fired? }
+  end
+
 end
