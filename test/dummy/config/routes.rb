@@ -13,7 +13,7 @@ Dummy::Application.routes.draw do
 
   # example using forms
   # special actions
-  get "forms_example/start"
+  get "forms_example/start(/:initial)", controller: 'forms_example', action: 'start', as: 'forms_example_start'
   get "forms_example/next"
   # actions (events)
   get "forms_example/ask"

@@ -23,7 +23,7 @@ namespace :stateful_controller do
     controller_route = $1.underscore
 
     f.puts "# special actions"
-    f.puts %{get "#{controller_route}/start"}
+    f.puts %{get "#{controller_route}/start(/:initial)", controller: '#{controller_route}', action: 'start', as: '#{controller_route}_start'}
     f.puts %{get "#{controller_route}/next"}
     f.puts "# actions (events)"
     actions.each {|action| 

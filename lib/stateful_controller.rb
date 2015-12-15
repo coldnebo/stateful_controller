@@ -115,9 +115,20 @@ module StatefulController
   end
 
   # 'start' is a special action that clears state and sets the state machine back to the initial state.
+  # the optional :initial part of the route allows the state machine to start in arbitrary parts of the 
+  # defined state machine, which can be useful for complex flows.
   def start
     save_state(nil)
     __load
+    if params[:initial].present?
+      # only set the state, don't process because this isn't an event.
+      aasm.current_state = params[:initial].to_sym
+    end
+    # before view should always be run, even on start if present.
+    if self.methods.include?(aasm.current_state)
+      __debug("before_view: #{aasm.current_state}")
+      self.send(aasm.current_state)
+    end
   end
 
   protected
