@@ -154,6 +154,13 @@ module StatefulController
 
   # before filter for setup
   def __load_and_process
+    # in the case where you need to start from a sub-action in the middle of a sm, you also need to force
+    # the sm to be cleared before any processing, otherwise you could get stuck.  This adds a optional param to any action route
+    # allowing the state machine to be reset right before the action.
+    if params[:clear]
+      save_state(nil)
+    end
+    
     __load
     event = params[:action].to_sym  # rails action should always be something convertible to a symbol
     return if event == :next  # next is a special action, don't try to send the event.
