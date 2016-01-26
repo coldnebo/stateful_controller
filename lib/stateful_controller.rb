@@ -4,7 +4,8 @@ require 'aasm'
 require 'stateful_controller/extend_aasm'
 require 'ostruct'
 require 'forwardable'
-
+require 'hashie'
+require 'active_model/conversion'
 require 'stateful_controller/railtie' if defined?(Rails)
 
 
@@ -105,13 +106,13 @@ module StatefulController
       end
 
       # just a synonym for creating a guard method.  helpful for organization.
-      #def guard(guard_name, &block)
-      #  define_method(guard_name, &block)
-      #end
+      def guard(guard_name, &block)
+       define_method(guard_name, &block)
+      end
 
       # guards need to be based on state, so might as well make it official.
       # with Hashie::Mash, these can be pass-thrus.
-      def guard(guard_name)
+      def state_guard(guard_name)
         def_delegator(:@state, guard_name)
       end
 
