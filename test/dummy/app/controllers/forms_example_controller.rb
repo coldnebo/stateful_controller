@@ -1,12 +1,12 @@
 class FormsExampleController < ApplicationController
   include StatefulController
 
-  class FormsExampleState < StatefulController::State
-    attr_accessor :name, :favorite_day, :valid
-    def initialize
-      @valid = false
-    end
-  end
+  # class FormsExampleState < StatefulController::State
+  #   attr_accessor :name, :favorite_day, :valid
+  #   def initialize
+  #     @valid = false
+  #   end
+  # end
 
   aasm do 
     view :welcome, initial: true
@@ -73,9 +73,7 @@ class FormsExampleController < ApplicationController
 
   # guards should always be expressed in terms of state because they can run anywhere anytime.
   # (i.e. before_views can be tied to view forms, but guards should be based on a longer lifetime.)
-  guard :valid? do
-    state.valid
-  end
+  state_guard :valid?
 
   # is today your favorite day
   guard :favorite? do
@@ -87,7 +85,7 @@ class FormsExampleController < ApplicationController
 
   # load state however you want...
   def load_state
-    session[:state] || FormsExampleState.new
+    state = session[:state] || State.new
   end
 
   def save_state(s)

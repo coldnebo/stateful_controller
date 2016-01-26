@@ -1,14 +1,14 @@
 class ExampleController < ApplicationController
   include StatefulController
 
-  class ExampleState < StatefulController::State
-    attr_accessor :clean, :tired, :nights
-    def initialize
-      @clean = true
-      @tired = false
-      @nights = 1
-    end
-  end
+  # class ExampleState < StatefulController::State
+  #   attr_accessor :clean, :tired, :nights
+  #   def initialize
+  #     @clean = true
+  #     @tired = false
+  #     @nights = 1
+  #   end
+  # end
 
   # states are 'views' and transitions are 'actions'
   aasm do 
@@ -53,12 +53,8 @@ class ExampleController < ApplicationController
 
   private
 
-  guard :clean? do
-    state.clean
-  end
-  guard :tired? do
-    state.tired
-  end
+  state_guard :clean? 
+  state_guard :tired? 
   guard :finished? do
     state.nights >= 2
   end
@@ -66,7 +62,9 @@ class ExampleController < ApplicationController
 
   # load state however you want...
   def load_state
-    session[:state] || ExampleState.new
+    state = session[:state] || State.new
+    state.nights = 1 unless state.nights?  # initialization code moved here since Hashie::Mash above. Am I happy with this? Hmm.
+    state
   end
 
   def save_state(s)
