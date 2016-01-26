@@ -85,11 +85,20 @@ class FormsExampleController < ApplicationController
 
   # load state however you want...
   def load_state
-    state = session[:state] || State.new
+    # if the underlying state exists, it's a hash, so we have to use Mash's constructor to convert it
+    # back to a State obj, or create a new state object.
+    state = unless session[:state].nil? 
+      State.new(session[:state]) 
+    else
+      State.new
+    end
   end
 
   def save_state(s)
-    session[:state] = s
+    # it's bad form to store an object directly in session
+    # http://stackoverflow.com/questions/1095714/storing-objects-in-a-session-in-rails
+    # so the Mash allows us to convert to a hash before we save it in session.
+    session[:state] = (s.nil?) ? nil : s.to_h
   end
 
 end
