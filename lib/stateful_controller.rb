@@ -3,6 +3,7 @@ require 'active_support/concern'
 require 'aasm'
 require 'stateful_controller/extend_aasm'
 require 'ostruct'
+require 'forwardable'
 
 require 'stateful_controller/railtie' if defined?(Rails)
 
@@ -14,18 +15,19 @@ module StatefulController
   extend ActiveSupport::Concern
 
   # subclass this class to store your own custom state in.
-  class State
+  class State < Hashie::Mash
     # make this state object support AM conversion.  use case: reform form (backed with state) passed to form_for tag.
     include ActiveModel::Conversion
     # it is up to the implementer of save_state and load_state to directly persist this object, not AM or AR indirectly.
     def persisted?; false; end
 
     # :current_state - the current state of the state machine.
-    attr_accessor :current_state
+    #attr_accessor :current_state
   end
 
   # things to mixin to the including controller instance
   included do
+    extend Forwardable  # allow this controller to forward guards to the state object.
     include AASM  # make this controller an aasm state machine as well.
     
     # state contains the State object instance and is automatically loaded at the start of an action and saved 
@@ -42,6 +44,7 @@ module StatefulController
     # this section removes the event methods that aasm normally adds to the including object
     # so that StatefulController actions can act more like Rails actions instead of firing aasm events.
     class << self
+
       alias_method :aasm_orig, :aasm
 
       @__sm_loaded = false
@@ -102,11 +105,17 @@ module StatefulController
       end
 
       # just a synonym for creating a guard method.  helpful for organization.
-      def guard(guard_name, &block)
-        define_method(guard_name, &block)
+      #def guard(guard_name, &block)
+      #  define_method(guard_name, &block)
+      #end
+
+      # guards need to be based on state, so might as well make it official.
+      # with Hashie::Mash, these can be pass-thrus.
+      def guard(guard_name)
+        def_delegator(:@state, guard_name)
       end
 
-    end
+    end # class<self    
   end
 
   # 'next' is a special action that goes to the (first) next available transition according to the state machine.
