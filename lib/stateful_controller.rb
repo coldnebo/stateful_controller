@@ -15,6 +15,11 @@ module StatefulController
 
   # subclass this class to store your own custom state in.
   class State
+    # make this state object support AM conversion.  use case: reform form (backed with state) passed to form_for tag.
+    include ActiveModel::Conversion
+    # it is up to the implementer of save_state and load_state to directly persist this object, not AM or AR indirectly.
+    def persisted?; false; end
+
     # :current_state - the current state of the state machine.
     attr_accessor :current_state
   end
@@ -158,6 +163,7 @@ module StatefulController
     # the sm to be cleared before any processing, otherwise you could get stuck.  This adds a optional param to any action route
     # allowing the state machine to be reset right before the action.
     if params[:clear]
+      __debug("clearing state with save_state(nil)")
       save_state(nil)
     end
     
