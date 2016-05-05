@@ -21,9 +21,6 @@ module StatefulController
     include ActiveModel::Conversion
     # it is up to the implementer of save_state and load_state to directly persist this object, not AM or AR indirectly.
     def persisted?; false; end
-
-    # :current_state - the current state of the state machine.
-    #attr_accessor :current_state
   end
 
   # things to mixin to the including controller instance
@@ -35,6 +32,10 @@ module StatefulController
     # at the end of an action.  state can be used within views through the same accessor.
     attr_reader :state
     helper_method :state
+
+    # in the case where a form validation wants to set http status codes for render, we need a way
+    # to store the status for the deferred render.
+    attr_accessor :rails_status
 
     # all actions call load & process before they execute, except for the special action 'start' which places 
     # the user in the initial state with no action (i.e. the start action is not treated as normal event.)
@@ -155,16 +156,32 @@ module StatefulController
     @__fired_event
   end
 
+  # can be used by actions to abort the current transistion (i.e. if an action failed)
+  # state machine will not advance if aborted.
+  def abort
+    __debug("aborting #{aasm.current_event}")
+    @__abort = true
+  end
+
   def state_changed?
     state.current_state != aasm.current_state
+  end
+
+  def aborted?
+    @__abort == true
   end
 
   # StatefulController redefines default_render: instead of rendering a view name that matches the action name, 
   # instead we render a view name that matches the current aasm state name according to the execution of the 
   # state machine so far.
   def default_render(*args)
-    __debug("rendering: #{aasm.current_state}")
-    render aasm.current_state
+    if aborted?
+      __debug("aborted! rendering: #{state.current_state} with status #{rails_status.inspect}")
+      render state.current_state, status: rails_status
+    else
+      __debug("rendering: #{aasm.current_state} with status #{rails_status.inspect}")
+      render aasm.current_state, status: rails_status
+    end
   end
 
   # before filter for setup
@@ -185,7 +202,8 @@ module StatefulController
 
   def __load
     @state = load_state
-    __debug("loaded state: #{@state.inspect}")
+    pp_state = PP.pp(@state.sort.to_h, '')
+    __debug("loaded state: #{pp_state}")
     raise ArgumentError, "load_state() must return a StatefulController::State or subclass." unless @state.kind_of?(State)
 
     # allow the StatefulController to retain it's current state across requests (since controller instances are created per request in Rails)
@@ -197,6 +215,10 @@ module StatefulController
   end
 
   def __process(event)
+    # store state in case action calls abort.
+    previous_state = aasm.current_state
+    @__abort = false
+
     # before we run the state machine or the guards, we need to run the pre-view logic for the current state.
     if self.methods.include?(aasm.current_state)
       __debug("before_view: #{aasm.current_state}")
@@ -212,17 +234,29 @@ module StatefulController
     # original line:  aasm(:#{@name}).current_event = :#{name}
     aasm.current_event = event
 
-    # also, aasm supports arguments for events, but because StatefulController models Rails controller actions, no arguments or blocks are supported.
-    # original line:  aasm_fire_event(:#{@name}, :#{name}, {:persist => false}, *args, &block)
-    @__fired_event = aasm_fire_event(:default, event, {persist: false}, [])
-    unless event_fired?
-      __debug("guards prevented: #{event}")
+    # if abort was called within a before_view, we need to stop the event from firing normally.
+    #  i.e. the guards passed but the flow was still aborted, say for conditional validation.
+    unless aborted?
+      # also, aasm supports arguments for events, but because StatefulController models Rails controller actions, no arguments or blocks are supported.
+      # original line:  aasm_fire_event(:#{@name}, :#{name}, {:persist => false}, *args, &block)
+      @__fired_event = aasm_fire_event(:default, event, {persist: false}, [])
+      unless event_fired?
+        pp_state = PP.pp(state.sort.to_h, '')
+        __debug("guards prevented: #{event}, using state: #{pp_state}")
+      end
+    else 
+      @__fired_event = false
+      __debug("aborted during before_view: #{aasm.current_state}")
     end
+    
 
     # after we've fired the event we also want to run the pre-view for the new current state, but only if it changed from the recorded state.
     if state_changed? && self.methods.include?(aasm.current_state)
-      __debug("before_view: #{aasm.current_state}")
-      self.send(aasm.current_state)
+      # if a before_view exists then execute it.
+      if self.methods.include?(aasm.current_state)
+        __debug("before_view: #{aasm.current_state}")
+        self.send(aasm.current_state)
+      end      
     end
   end
 
@@ -230,9 +264,17 @@ module StatefulController
   # is set in the State object and a save_state message is sent to the implementing controller. 
   def __finish
     if state_changed?
-      state.current_state = aasm.current_state
-      save_state(state)
-      __debug("saved state: #{state.inspect}")
+
+      # if the action(event) aborted, then we need to reset to the previous state.
+      if aborted?
+        __debug("aborted transition, discarding state changes.")
+      else
+        state.current_state = aasm.current_state
+        save_state(state)
+        pp_state = PP.pp(state.sort.to_h, '')
+        __debug("saved state: #{pp_state}")
+      end
+
     end
   end
 
